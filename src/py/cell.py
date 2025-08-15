@@ -158,10 +158,10 @@ class ImmortalCell(Cell):
     def get_display_color(self, display_handler):
         if self.is_alive:
             # Example: Blue for immortal, cyan if newly born
-            if getattr(self, 'was_born_this_gen', False):
-                return display_handler.colors.get('cyan', '')
-            return display_handler.colors.get('blue', '')
+            #if getattr(self, 'was_born_this_gen', False):
+            #    return display_handler.colors.get('cyan', '')
+            return display_handler.colors.get('yellow', '')
         else:
-            if getattr(self, 'was_alive_last_gen', False): 
-                return display_handler.colors.get('red', '') 
+            #if getattr(self, 'was_alive_last_gen', False): 
+            #    return display_handler.colors.get('red', '') 
             return display_handler.colors.get('grey', '')

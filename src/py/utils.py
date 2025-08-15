@@ -87,3 +87,15 @@ def get_value(prompt, low, high, tipo=int):
         else:
             break
     return value
+
+
+def clear_console():
+    """Utility function to clear console"""
+    if sys.platform.startswith('win'):
+        os.system("cls")
+    elif sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
+        os.system("clear")
+    else:
+        print("Unable to clear terminal. Your operating system is not supported.\n\r")
+
+

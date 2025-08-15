@@ -1,19 +1,13 @@
-#!/usr/bin/env python3
-
-import time
 import os
-import random
 import sys
+import random
 
-from utils import KeyboardHandler, get_value, get_seed
-from cell import StandardCell
+from cell import StandardCell, ImmortalCell
+#from main import seed
 
 cols_dflt = 20
 rows_dflt = 10
 
-seed = get_seed()
-random.seed(seed)
-    
 ## --------------------------------------------------------------------
 # Underpopulation - If a live cell has is surrounded 
 #                   by less than two surrounding neighbours
@@ -49,6 +43,7 @@ random.seed(seed)
 #        
 ## --------------------------------------------------------------------
 
+
 class GameOfLifeEngine:
     def __init__(self, mode='original', rows=None, cols=None):
         """
@@ -64,7 +59,7 @@ class GameOfLifeEngine:
             self.cols = cols_dflt
         if self.rows < rows_dflt:
             self.rows = rows_dflt
-            
+        
         self.current_generation = []
         self.next_generation = []
         self.generation = 0
@@ -120,10 +115,11 @@ class GameOfLifeEngine:
             self.cols = len(pattern[0]) if pattern else self.cols
         else:
             self.current_generation = self._create_random_grid()
-        
     
     def _get_cell(self):
+        #aliviness = 
         is_alive = (random.randint(0, 7) == 0)
+        #is_immortal = (random.randint(0, 70) == 0)
         
         if self.mode == 'original':
             return StandardCell(
@@ -132,15 +128,18 @@ class GameOfLifeEngine:
                 death_char='.',
             )
         else:
-            raise NotImplementedError
             if random.randint(1, 100) == 1:
-                return ImmortalCell
+                return ImmortalCell(
+                    is_alive=is_alive,
+                    alive_char='R',
+                    death_char='.',
+                )
             else:
                 return StandardCell(
-                is_alive=is_alive,
-                alive_char='@',
-                death_char='.',
-            )
+                    is_alive=is_alive,
+                    alive_char='@',
+                    death_char='.',
+                )
 
     def _create_random_grid(self):
         """Create a random grid of cell objects"""
@@ -153,18 +152,38 @@ class GameOfLifeEngine:
         return grid
     ## ---------------------
     
-    
-    def _update_step(self, row, col):
+    def get_neighbors(self, row, col):
         neighbors = []
+        tmp=[]
+        #print(f"\n[{row}][{col}]")
+        
         for i in range(-1, 2):
             for j in range(-1, 2):
+                
                 if not (i == 0 and j == 0):
+                    
+                    if i == -1:
+                        if row == 0 or row == self.rows-1:
+                            #print(f"\t row [{row+i}] skipeed")
+                            pass
+                        
+                    if j == -1:
+                        if col == 0 or col == self.cols-1: 
+                            #print(f"\t col [{col+j}] skipped")
+                            pass 
+                        
                     n_row = (row + i) % self.rows
                     n_col = (col + j) % self.cols
+                    tmp.append( [n_row, n_col] )
                     neighbors.append(self.current_generation[n_row][n_col])
-            
+        #print(f"\t{tmp=}")
+        return neighbors
+    
+    def _update_step(self, row, col):
+        neighbors = self.get_neighbors(row, col)
         self.current_generation[row][col].update(neighbors) # calculate its next state
-
+        self.current_generation[row][col].apply_update()
+        
         if self.generation:
             ## Determine the cell type for the next generation
             next_cell_type = type(self.current_generation[row][col])
@@ -173,31 +192,30 @@ class GameOfLifeEngine:
                 print(f"MISMATCH OF CELL TYPES {self.next_generation[row][col]} {next_cell_type}")
                 # Create new cell of correct type, initially dead
                 self.next_generation[row][col] = next_cell_type(is_alive=False)
-        
-        self.current_generation[row][col].apply_update()
-        
-        if self.generation:
+            
             self.next_generation[row][col].is_alive = self.current_generation[row][col].is_alive
             self.next_generation[row][col].age = self.current_generation[row][col].age
     
 
     ## ---------------------
     def update_generation(self):
-        """Calculate the next generation using polymorphism"""
+        """Calculate the next generation"""
         if not self.generation:
             for row in range(self.rows):
                 new_row = []
                 for col in range(self.cols):
-                    self._update_step(row, col)
-                    #print(f"{row}{col} {cell=}")
+                    #self._update_step(row, col)
+                    neighbors = self.get_neighbors(row, col)
+                    self.current_generation[row][col].update(neighbors) 
+                    self.current_generation[row][col].apply_update()
                     new_row.append(self.current_generation[row][col])
                 self.next_generation.append(new_row)
         else:   
             for row in range(self.rows):
                 for col in range(self.cols):                
                     self._update_step(row, col)
-        # Swap grids
-        self.current_generation, self.next_generation = self.next_generation, self.current_generation
+            # Swap grids
+            self.current_generation, self.next_generation = self.next_generation, self.current_generation
         self.generation += 1
     ## ---------------------
     
@@ -228,28 +246,29 @@ class GameOfLifeEngine:
         return self.tsleep
     ## ---------------------
     
-    def clear_console(self):
-        """Clear the console"""
-        if sys.platform.startswith('win'):
-            os.system("cls")
-        elif sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
-            os.system("clear")
-        else:
-            print("Unable to clear terminal. Your operating system is not supported.\n\r")
-
-
+    
+    
 class GameOfLifeDisplay:
     def __init__(self):
         """Initialize display handler"""
         self.old_settings = None
         # TODO dyn according age
         self.colors = {
-            'reset': '\033[0m',
-            'grey': '\033[37m',
-            'green': '\033[32m',    
-            'bright_green': '\033[92m',
-            'red': '\033[3;41m',
-            'yellow': '\033[33m'
+            'reset': 
+                '\033[0m',
+            'grey': 
+                '\033[37m',
+            'green': 
+                '\033[32m',    
+            'bright_green': 
+                '\033[92m',
+            'red': 
+                #'\033[3;41m',
+                '\033[31m',
+            'yellow': 
+                '\033[33m',
+            'purple': 
+                '\033[2;95m'
         }
 
     ## --------------------------------
@@ -285,7 +304,7 @@ class GameOfLifeDisplay:
         
         
         ## -----------------------------------------
-        status = f"Seed {seed} | Gen {generation} | "
+        status = f"Seed {random.seed()} | Gen {generation} | "
         if paused:
             status += "[PAUSE] | "
         status += f"Speed {speed:.2f}s | "
@@ -319,134 +338,3 @@ class GameOfLifeDisplay:
             sys.stdout.write(line + "\n")
             
         sys.stdout.flush()
-
-
-class GameOfLifeController:
-    def __init__(self, mode='original', rows=None, cols=None):
-        """
-        Initialize the complete Game of Life system
-        
-        :param rows: Int - Grid rows
-        :param cols: Int - Grid columns
-        """
-        self.engine = GameOfLifeEngine(
-            mode=mode,
-            rows=rows, 
-            cols=cols
-        )
-        self.display = GameOfLifeDisplay()
-        self.keyboard_handler = KeyboardHandler(use_thread=False) 
-        self.i = 0
-    
-    def setup_game(self, fullscreen=False):
-        """Setup the game with specified parameters"""
-        if fullscreen:
-            self.engine.resize_to_fullscreen()    
-        self.engine.initialize_grid()
-    
-    def is_active(self):
-        """Check if the simulation is still active"""
-        return True  # For now, always return True, can add stopping conditions
-    
-    ## ---------------------------------------
-    def _key_handler(self):
-        key = self.keyboard_handler.get_key()
-        if key:
-            if key.lower() == 'q':
-                return 0
-            else:
-                if key == ' ':
-                    self.engine.toggle_pause()
-                elif key == '+': # + speed (decrease delay)
-                    self.engine.adjust_speed(-0.05)
-                elif key == '-': # - speed (increase delay)
-                    self.engine.adjust_speed(0.05)
-                
-                grid_state = self.engine.get_grid_state()
-                self.display.print_grid(grid_state)
-        return 1
-    ## ---------------------------------------        
-    
-    
-    def start_animation(self, delay=0.2, gens=1000, fullscreen_check=True):
-        """
-        Start the animation loop
-        
-        :param delay: Float - Delay between generations
-        :param fullscreen_check: Bool - Check for terminal resize
-        """
-        self.engine.tsleep = delay
-        
-        self.keyboard_handler.start()
-        
-        self.display.hide_cursor()
-        self.display.clear_screen()
-        
-        try:
-            while True:    
-                if not self._key_handler(): break
-                
-                if not self.engine.paused:
-                    grid_state = self.engine.get_grid_state()
-                    self.display.print_grid(grid_state)
-                    
-                    self.engine.update_generation()
-                
-                    time.sleep(self.engine.tsleep)
-                    if not self._key_handler(): break
-                
-                ## --------
-                if self.i == gens: break
-                self.i =+ 1
-                ## --------
-                
-        except KeyboardInterrupt:
-            print("\nGame interrupted by user")
-        finally:
-            self.keyboard_handler.terminate()
-            self.display.show_cursor()
-
-
-def main():
-    """Main function with updated class-based approach"""
-    clear_console()
-    use_fullscreen = input("Use fullscreen? (y/n): ").lower().startswith('y')
-    
-    if use_fullscreen:
-        controller = GameOfLifeController(
-            mode='original'
-        )
-        controller.setup_game(fullscreen=True)
-    else:
-        rows = get_value("Enter the number of rows (10-60): ", 10, 60, int)
-        cols = get_value("Enter the number of cols (10-118): ", 10, 118, int)
-        controller = GameOfLifeController(
-            mode='original',
-            rows=rows, 
-            cols=cols)
-        controller.setup_game()
-    
-    generations = get_value("Enter the number of generations (0-inf): ", 0, 100000, int)
-    tsleep = get_value("Enter sleep time (0-2s): ", 0, 2, float)
-    
-    print("The Game of Life...")
-    print("  space - Pause/Resume")
-    print("  +     - Increase speed")
-    print("  -     - Decrease speed")
-    print("  q     - Quit")
-    input("enter ...")
-    
-    controller.start_animation(delay=tsleep, gens=generations)
-
-def clear_console():
-    """Utility function to clear console"""
-    if sys.platform.startswith('win'):
-        os.system("cls")
-    elif sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
-        os.system("clear")
-    else:
-        print("Unable to clear terminal. Your operating system is not supported.\n\r")
-
-
-if __name__ == "__main__":
-    main()
